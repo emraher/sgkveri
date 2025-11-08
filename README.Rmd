@@ -1,0 +1,313 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%",
+  eval = TRUE
+)
+```
+
+# sgkveri
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/emraher/sgkveri/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/emraher/sgkveri/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+**sgkveri** provides programmatic access to the Social Security Institution of Turkey (SGK) data portal at <https://veri.sgk.gov.tr/>. The package is designed for researchers and analysts who want to retrieve and work with social security statistics for Turkish provinces over multiple years and indicators through a concise and user-friendly R interface.
+
+## Features
+
+- Retrieve social security data for all 81 Turkish provinces
+- Access a wide range of indicators (employment, pensions, healthcare, etc.)
+- Query data across multiple years
+- Automatic validation and type conversion
+- Session-level caching for faster repeated queries
+- Choice of English or Turkish column names
+- Built-in search tools for discovering indicators
+
+## Installation
+
+You can install the development version of **sgkveri** from [GitHub](https://github.com/emraher/sgkveri) with:
+
+```r
+# install.packages("pak")
+pak::pak("emraher/sgkveri")
+```
+
+Or using **remotes**:
+
+```r
+# install.packages("remotes")
+remotes::install_github("emraher/sgkveri")
+```
+
+## Quick Start
+
+### Basic Usage
+
+```{r basic-example}
+library(sgkveri)
+
+# Get data for a specific indicator, year, and city
+data <- sgk_get_data(
+  indicator_id = 90,  # Indicator ID
+  period_id = 2023,   # Year
+  city_code = 34      # Istanbul (plate code)
+)
+
+data
+```
+
+### Exploring Available Data
+
+Before downloading data, it is often useful to see what the API offers:
+
+```{r catalog-functions}
+# All available indicator categories and indicators
+categories <- sgk_get_categories()
+head(categories)
+
+# Available years
+years <- sgk_get_years()
+head(years)
+
+# List of cities with plate codes
+cities <- sgk_get_cities()
+head(cities)
+
+# Search indicators by keyword (Turkish)
+pension_data <- sgk_search_indicators("yaşlılık")      # Old-age pensions
+head(pension_data)
+
+employment_data <- sgk_search_indicators("sigortalı")  # Insured workers
+head(employment_data)
+```
+
+## Common Use Cases
+
+### Multiple Cities
+
+```{r multiple-cities}
+# Data for several major provinces
+major_cities <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2023,
+  city_code = c(6, 34, 35)  # Ankara, Istanbul, Izmir
+)
+
+head(major_cities)
+```
+
+### Multiple Years
+
+```{r multiple-years}
+# Simple time-series extraction
+time_series <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2019:2023,
+  city_code = 34
+)
+
+head(time_series)
+```
+
+### All Provinces
+
+```{r all-cities}
+# Data for all provinces (default)
+nationwide <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2023
+  # city_code = NULL (default: all provinces)
+)
+
+head(nationwide)
+```
+
+### Multiple Indicators
+
+```{r multiple-indicators}
+# Compare several indicators for the same city and year
+multi_indicator <- sgk_get_data(
+  indicator_id = c(90, 91, 92),
+  period_id = 2023,
+  city_code = 34
+)
+
+head(multi_indicator)
+```
+
+### Turkey-wide Totals and Abroad
+
+```{r turkey-total}
+# National total using city code 999
+turkey_total <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2023,
+  city_code = 999
+)
+
+head(turkey_total)
+```
+
+## Advanced Features
+
+### Turkish Column Names
+
+```{r turkish-names}
+# Preserve original Turkish variable names
+data_tr <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2023,
+  city_code = 34,
+  english_names = FALSE
+)
+
+head(data_tr)
+```
+
+### Raw String Data
+
+```{r raw-data}
+# Disable automatic numeric conversion for custom parsing
+data_raw <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2023,
+  city_code = 34,
+  convert_numeric = FALSE
+)
+
+head(data_raw)
+```
+
+### Skipping Validation for Speed
+
+```{r skip-validation}
+# Skip input validation (faster, but less safe)
+data_fast <- sgk_get_data(
+  indicator_id = 90,
+  period_id = 2023,
+  city_code = 34,
+  validate = FALSE
+)
+
+head(data_fast)
+```
+
+### Cache Management
+
+```{r cache-management}
+# Clear session cache to force fresh API calls
+sgk_clear_cache()
+
+# Bypass cache for a single call
+categories <- sgk_get_categories(use_cache = FALSE)
+```
+
+## City Codes
+
+Turkish provinces are indexed by standardized plate (city) codes (1–81). For example:
+
+- 1: Adana
+- 6: Ankara
+- 34: Istanbul
+- 35: Izmir
+
+Special codes:
+
+- `999`: Turkey total (national aggregate)
+- `998`: Abroad
+
+Use `sgk_get_cities()` to obtain the full mapping. The API uses internal `city_id` values; **sgkveri** handles the mapping from plate codes to API identifiers internally. In regular usage, you should supply **plate codes** to the R functions.
+
+## Indicators
+
+Indicators are grouped into categories. Typical domains include:
+
+- Employment statistics
+- Pension recipients
+- Health insurance and healthcare services
+- Workplace accidents and occupational risks
+- Social assistance and related programs
+
+Use `sgk_get_categories()` to list all categories and indicators, or `sgk_search_indicators()` to search indicators by keyword.
+
+## Data Structure
+
+By default, **sgkveri** returns a tibble with the following columns:
+
+- `city_code`: Province plate code (1–81 for provinces, 999 for Turkey total, 998 for abroad)
+- `city_name`: Province name in Turkish
+- `category_id`: Indicator category ID
+- `indicator_name`: Full indicator description
+- Year columns (e.g. `2019`, `2020`, `2021`): Values for each year requested
+
+Depending on the specific endpoint and options, additional columns may be present.
+
+## Error Handling
+
+The package includes defensive checks to make failures informative:
+
+- Invalid category or indicator IDs trigger warnings or errors with clear messages
+- Invalid or unavailable years are caught during validation
+- Transient API errors are retried automatically (with backoff)
+- Network and HTTP errors yield informative error messages rather than silent failures
+
+## Performance Guidelines
+
+To reduce latency and server load:
+
+1. Use `validate = FALSE` when you are confident in your inputs and need maximum speed.
+2. Request multiple years, cities, or indicators in a single call rather than looping over many small calls.
+3. Take advantage of the built-in cache for repeated queries.
+4. Be aware that the API is aggressively rate-limited; avoid rapid, unnecessary repeated requests.
+
+## Data Source
+
+All data are obtained from the official SGK API:
+
+- Base endpoint: `https://net.sgk.gov.tr/WS_SgkVeriV2/api/v1`
+
+Please use the service responsibly:
+
+- Avoid excessive or automated high-frequency requests
+- Cache and reuse downloaded data where possible
+- Follow any current SGK data usage terms and conditions
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome via GitHub:
+
+<https://github.com/emraher/sgkveri>
+
+## License
+
+This package is released under the MIT License. See the `LICENSE` file for details.
+
+## Citation
+
+To cite **sgkveri** in academic work:
+
+```{r citation}
+citation("sgkveri")
+```
+
+## Related Resources
+
+- SGK Data Portal: <https://veri.sgk.gov.tr/>
+- SGK Official Website: <https://www.sgk.gov.tr/>
+
+## Package Vignette
+
+For more detailed workflows and applied examples, see the introductory vignette:
+
+```{r vignette}
+vignette("sgkveri-intro", package = "sgkveri")
+```

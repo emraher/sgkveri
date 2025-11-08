@@ -1,0 +1,24 @@
+Package: sgkveri
+Title: Programmatic downloads from SGK Veri
+Version: 0.0.0.9000
+Authors@R: 
+    person("Emrah", "Er", , "eer@eremrah.com", role = c("aut", "cre"))
+Description: Automates indicator selection and data downloads from
+    net.sgk.gov.tr/sgkveri2 via API.
+License: MIT + file LICENSE
+Depends: R (>= 4.2.0)
+Imports: cli, dplyr, httr, httr2, jsonlite, magrittr, memoise, purrr,
+        rlang, tibble, tidyr
+Suggests: ggplot2, httptest2, knitr, rmarkdown, scales, testthat (>=
+        3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+URL: https://github.com/emraher/sgkveri
+BugReports: https://github.com/emraher/sgkveri/issues
+VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2025-11-08 12:51:34 UTC; emraher
+Author: Emrah Er [aut, cre]
+Maintainer: Emrah Er <eer@eremrah.com>

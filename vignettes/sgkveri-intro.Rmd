@@ -1,0 +1,373 @@
+---
+title: "Getting Started with sgkveri"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with sgkveri}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE  # Set to TRUE if you want to run examples during build
+)
+```
+
+# Introduction
+
+The `sgkveri` package provides programmatic access to SGK Veri (Turkish Social Security Institution) statistics via REST API. This vignette demonstrates common use cases and workflows.
+
+```{r setup}
+library(sgkveri)
+```
+
+## Discovering Available Data
+
+Before retrieving data, it's helpful to explore what's available:
+
+### Available Categories and Indicators
+
+```{r categories}
+# Get all available categories and indicators
+categories <- sgk_get_categories()
+head(categories)
+
+# The result is cached within your R session for faster subsequent calls
+categories_again <- sgk_get_categories()  # Returns cached result
+```
+
+### Available Cities
+
+```{r cities}
+# Get all cities with their plate codes
+cities <- sgk_get_cities()
+head(cities)
+
+# Major cities
+istanbul <- cities[cities$city_code == 34, ]
+ankara <- cities[cities$city_code == 6, ]
+izmir <- cities[cities$city_code == 35, ]
+```
+
+### Available Years
+
+```{r years}
+# Get all available years
+years <- sgk_get_years()
+head(years)
+
+# Get the most recent year
+latest_year <- sgk_get_latest_year()
+print(latest_year)
+```
+
+## Searching for Indicators
+
+Use `sgk_search_indicators()` to find relevant indicators:
+
+```{r search}
+# Find all indicators related to "yaşlılık" (old age)
+yaslilik_indicators <- sgk_search_indicators("yaşlılık")
+head(yaslilik_indicators)
+
+# Find indicators related to employment
+istihdam <- sgk_search_indicators("istihdam", ignore_case = TRUE)
+head(istihdam)
+```
+
+## Retrieving Data
+
+### Basic Example
+
+```{r basic}
+# Get active insured persons data for 2023 (all cities)
+data <- sgk_get_data(
+  category_id = 90,  # "01.Toplam Aktif Sigortalı (4a, 4b, 4c)"
+  period_id = 2023
+)
+
+# View the structure
+str(data)
+head(data)
+```
+
+### Filtering by Cities
+
+```{r cities-filter}
+# Get data only for Istanbul, Ankara, and Izmir
+major_cities_data <- sgk_get_data(
+  category_id = 90,
+  period_id = 2023,
+  city_code = c(34, 6, 35)  # Istanbul, Ankara, Izmir
+)
+
+print(major_cities_data)
+```
+
+### Multiple Years
+
+```{r multiple-years}
+# Get time series data
+time_series <- sgk_get_data(
+  category_id = 90,
+  period_id = c(2020, 2021, 2022, 2023),
+  city_code = 34  # Istanbul only
+)
+
+# The result has columns: 2020, 2021, 2022, 2023
+# Year columns are automatically converted to numeric
+print(time_series)
+```
+
+### Multiple Indicators
+
+```{r multiple-indicators}
+# Compare multiple indicators
+comparison <- sgk_get_data(
+  category_id = c(90, 91, 92),
+  period_id = 2023,
+  city_code = c(34, 6, 35)
+)
+
+# View different indicators
+unique(comparison$indicator_name)
+```
+
+## Data Validation
+
+Validate parameters before making API calls:
+
+```{r validate}
+# Check if parameters are valid
+sgk_validate_request(
+  category_id = 90,
+  period_id = 2023,
+  city_code = 34
+)
+
+# This will warn about invalid values
+sgk_validate_request(
+  category_id = 999999,  # Invalid
+  period_id = 1900,      # Invalid
+  city_code = 999        # Valid (Turkey total)
+)
+```
+
+## Working with Results
+
+### Basic Analysis
+
+```{r analysis}
+# Get data for all provinces
+all_provinces <- sgk_get_data(
+  category_id = 90,
+  period_id = 2023
+)
+
+# Summary statistics
+summary(all_provinces$`2023`)
+
+# Top 10 provinces by insured persons
+library(dplyr)
+top_provinces <- all_provinces %>%
+  arrange(desc(`2023`)) %>%
+  head(10)
+
+print(top_provinces)
+```
+
+### Time Series Analysis
+
+```{r time-series}
+# Get multi-year data for comparison
+istanbul_ts <- sgk_get_data(
+  category_id = 90,
+  period_id = c(2018, 2019, 2020, 2021, 2022, 2023),
+  city_code = 34
+)
+
+# Calculate year-over-year growth
+library(tidyr)
+istanbul_long <- istanbul_ts %>%
+  select(city_name, starts_with("20")) %>%
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "year",
+    values_to = "value"
+  ) %>%
+  mutate(year = as.integer(year)) %>%
+  arrange(year)
+
+# Calculate growth rate
+istanbul_long <- istanbul_long %>%
+  mutate(
+    growth_rate = (value / lag(value) - 1) * 100
+  )
+
+print(istanbul_long)
+```
+
+### Visualization
+
+```{r visualization}
+library(ggplot2)
+
+# Compare major cities over time
+major_cities <- sgk_get_data(
+  category_id = 90,
+  period_id = c(2018, 2019, 2020, 2021, 2022, 2023),
+  city_code = c(34, 6, 35, 16, 7)  # Istanbul, Ankara, Izmir, Bursa, Antalya
+)
+
+# Reshape for plotting
+major_cities_long <- major_cities %>%
+  select(city_name, starts_with("20")) %>%
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "year",
+    values_to = "value"
+  ) %>%
+  mutate(year = as.integer(year))
+
+# Create line plot
+ggplot(major_cities_long, aes(x = year, y = value, color = city_name)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Active Insured Persons in Major Turkish Cities",
+    x = "Year",
+    y = "Number of Insured Persons",
+    color = "City"
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+```
+
+## Advanced Features
+
+### Disabling Validation for Speed
+
+```{r no-validate}
+# Skip validation if you're sure parameters are correct
+# This saves time by avoiding extra API calls
+data_fast <- sgk_get_data(
+  category_id = 90,
+  period_id = 2023,
+  city_code = 34,
+  validate = FALSE
+)
+```
+
+### Keeping Turkish Column Names
+
+```{r turkish-names}
+# Get data with original Turkish column names
+data_turkish <- sgk_get_data(
+  category_id = 90,
+  period_id = 2023,
+  city_code = 34,
+  english_names = FALSE
+)
+
+names(data_turkish)
+```
+
+### Keeping String Values
+
+```{r string-values}
+# Get data without converting year columns to numeric
+data_strings <- sgk_get_data(
+  category_id = 90,
+  period_id = 2023,
+  city_code = 34,
+  convert_numeric = FALSE
+)
+
+# Useful if you need to preserve exact formatting
+str(data_strings$`2023`)
+```
+
+### Cache Management
+
+```{r cache}
+# Clear cached catalog data
+sgk_clear_cache()
+
+# Force fresh data from API
+categories_fresh <- sgk_get_categories(use_cache = FALSE)
+cities_fresh <- sgk_get_cities(use_cache = FALSE)
+years_fresh <- sgk_get_years(use_cache = FALSE)
+```
+
+## Complete Workflow Example
+
+Here's a complete example that combines multiple features:
+
+```{r complete-example}
+# 1. Search for relevant indicators
+employment_indicators <- sgk_search_indicators("4a")
+
+# 2. Select an indicator
+selected_indicator <- employment_indicators$indicator_id[1]
+
+# 3. Validate the request
+sgk_validate_request(
+  category_id = selected_indicator,
+  period_id = c(2020, 2021, 2022, 2023),
+  city_code = c(34, 6, 35)
+)
+
+# 4. Retrieve the data
+employment_data <- sgk_get_data(
+  category_id = selected_indicator,
+  period_id = c(2020, 2021, 2022, 2023),
+  city_code = c(34, 6, 35)
+)
+
+# 5. Analyze and visualize
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+employment_long <- employment_data %>%
+  select(city_name, starts_with("20")) %>%
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "year",
+    values_to = "value"
+  ) %>%
+  mutate(year = as.integer(year))
+
+ggplot(employment_long, aes(x = year, y = value, fill = city_name)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Employment Trends in Major Cities",
+    x = "Year",
+    y = "Number of Insured Persons",
+    fill = "City"
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+```
+
+## Tips and Best Practices
+
+1. **Use caching**: The catalog functions cache results within your session. Use `sgk_clear_cache()` only when you need fresh data.
+
+2. **Validate before bulk operations**: Use `sgk_validate_request()` before running large batch operations to catch errors early.
+
+3. **Search first**: Use `sgk_search_indicators()` to find the right indicators before retrieving data.
+
+4. **Automatic retries**: All API functions automatically retry failed requests up to 3 times with exponential backoff.
+
+5. **Numeric conversion**: Year columns are automatically converted to numeric. Set `convert_numeric = FALSE` if you need the original string format.
+
+6. **English names**: Column names are automatically translated to English. Set `english_names = FALSE` to keep Turkish names.
+
+## Getting Help
+
+- GitHub Issues: https://github.com/emraher/sgkveri/issues
+- Package documentation: `?sgkveri`
+- Function help: `?sgk_get_data`, `?sgk_search_indicators`, etc.
