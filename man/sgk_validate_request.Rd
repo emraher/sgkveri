@@ -4,10 +4,10 @@
 \alias{sgk_validate_request}
 \title{Validate SGK API request parameters}
 \usage{
-sgk_validate_request(category_id, period_id, city_code = NULL)
+sgk_validate_request(indicator_id, period_id, city_code = NULL)
 }
 \arguments{
-\item{category_id}{Category/indicator IDs to validate}
+\item{indicator_id}{Indicator IDs to validate}
 
 \item{period_id}{Period/year IDs to validate}
 

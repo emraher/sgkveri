@@ -5,7 +5,7 @@
 \title{Get SGK Veri data}
 \usage{
 sgk_get_data(
-  category_id,
+  indicator_id,
   period_id,
   city_code = NULL,
   validate = TRUE,
@@ -14,13 +14,13 @@ sgk_get_data(
 )
 }
 \arguments{
-\item{category_id}{Category/indicator IDs (character vector or numeric vector)}
+\item{indicator_id}{Indicator IDs (character vector or numeric vector). Use sgk_get_categories() to discover valid IDs.}
 
 \item{period_id}{Period/year IDs (character vector or numeric vector)}
 
 \item{city_code}{City plate codes (character vector or numeric vector). Default returns all cities. Use sgk_get_cities() to see available plate codes (1-81 for provinces, 999 for Turkey total, 998 for abroad).}
 
-\item{validate}{Logical. If TRUE (default), validates category_id and period_id against available values.}
+\item{validate}{Logical. If TRUE (default), validates indicator_id and period_id against available values.}
 
 \item{convert_numeric}{Logical. If TRUE (default), converts year columns to numeric values.}
 
@@ -36,14 +36,14 @@ Get SGK Veri data
 \dontrun{
 # Get data for Istanbul and Ankara in 2023
 data <- sgk_get_data(
-  category_id = 90,
+  indicator_id = 90,
   period_id = 2023,
   city_code = c(34, 6)
 )
 
 # Get multiple years with automatic numeric conversion
 data <- sgk_get_data(
-  category_id = c(90, 91),
+  indicator_id = c(90, 91),
   period_id = c(2021, 2022, 2023),
   city_code = 34
 )
