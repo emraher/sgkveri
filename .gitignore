@@ -1,6 +1,14 @@
 .Rproj.user
 .Rhistory
 .Rdata
+.RData
 .httr-oauth
 .DS_Store
 .quarto
+
+# R build artifacts
+*.Rcheck/
+*.tar.gz
+inst/doc
+doc
+Meta
